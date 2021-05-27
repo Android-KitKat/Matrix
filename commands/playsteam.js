@@ -95,8 +95,9 @@ module.exports = {
  * @returns {Promise<Discord.Collection<string, any>>}
  */
 async function getGamesData(profile) {
-  let url = `${profile}${profile.endsWith('/') ? '' : '/'}games/?xml=1&l=schinese`; // 生成URL
-  let res = await fetch(url); // 发送请求
+  let url = new URL('games/?xml=1&l=schinese', `${profile}${profile.endsWith('/') ? '' : '/'}`); // 生成URL
+  if (url.host !== 'steamcommunity.com') throw new TypeError(`非Steam社区地址: ${profile}`); // 检查URL
+  let res = await fetch(url.href); // 发送请求
   let data = await xml2js.parseStringPromise(await res.text(), { explicitArray: false }); // 解析XML
   // 无法获取游戏数据时报错
   if (!data.gamesList.games || !data.gamesList.games.game) {
