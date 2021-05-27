@@ -80,7 +80,7 @@ module.exports = {
     // 用便于浏览的形式输出
     let result = [];
     for (let game of data.first(15).values()) {
-      result.push(`[${game.name}](${game.storeLink}) (${game.hoursOnRecord} 小时)`);
+      result.push(`[${game.name}](${game.storeLink}) (${game.hoursOnRecord.toFixed(1)} 小时)`);
     }
     let embed = commonEmbed()
       .setTitle('共同游玩的Steam游戏')
