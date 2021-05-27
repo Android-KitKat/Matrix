@@ -99,7 +99,7 @@ async function getGamesData(profile) {
   let res = await fetch(url); // 发送请求
   let data = await xml2js.parseStringPromise(await res.text(), { explicitArray: false }); // 解析XML
   // 无法获取游戏数据时报错
-  if (!data.gamesList.games) {
+  if (!data.gamesList.games || !data.gamesList.games.game) {
     let error = new Error(`无法获取 [${data.gamesList.steamID}](${profile}) 的游戏信息。`);
     error.code = 'ERR_GAME_INFO';
     throw error;
