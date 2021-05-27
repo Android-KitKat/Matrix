@@ -1,0 +1,32 @@
+{
+  "name": "matrix",
+  "version": "0.1.0",
+  "description": "Personal Discord robot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Android-KitKat/Matrix.git"
+  },
+  "keywords": [
+    "Discord",
+    "Bot",
+    "Matrix"
+  ],
+  "author": "Android-KitKat",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Android-KitKat/Matrix/issues"
+  },
+  "homepage": "https://github.com/Android-KitKat/Matrix#readme",
+  "dependencies": {
+    "discord.js": "github:discordjs/discord.js",
+    "global-agent": "^2.1.12",
+    "node-fetch": "^2.6.1",
+    "tracer": "^1.1.4",
+    "xml2js": "^0.4.23"
+  }
+}
