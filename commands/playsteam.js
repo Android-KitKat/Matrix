@@ -46,19 +46,26 @@ module.exports = {
     const { options } = interaction;
     const { commonEmbed, errorEmbed } = interaction.client.embeds;
 
-    // 计算游戏的交集
-    let data;
+    let playerList = []; // 玩家列表
+    let games; // 游戏的交集
     try {
-      data = await getGamesData(options[0].value.trim());
-      for (let i = 1; i < options.length; i++) {
-        let intersect = data.intersect(await getGamesData(options[i].value.trim()));
+      for (let i = 0; i < options.length; i++) {
+        let data = await getGamesData(options[i].value.trim()); // 获取游戏数据
+        playerList.push(`[${data.steamID}](${data.profile})`); // 向玩家列表添加玩家
+        // 如果是初次循环，则不继续计算。
+        if (i === 0) {
+          games = data.games;
+          continue;
+        }
+        let intersect = games.intersect(data.games); // 计算游戏的交集
+        // 将游玩时间相加
         intersect.each(game => {
-          let oldGame = data.get(game.appID);
+          let oldGame = games.get(game.appID);
           if (game.hoursOnRecord || oldGame.hoursOnRecord) {
             game.hoursOnRecord = (game.hoursOnRecord || 0) + (oldGame.hoursOnRecord || 0);
           }
         });
-        data = intersect;
+        games = intersect;
       }
     } catch (error) {
       if (error.code !== 'ERR_GAME_INFO') throw error;
@@ -66,20 +73,25 @@ module.exports = {
     }
 
     // 按游玩时间排序
-    data = data.sort((gameA, gameB) => {
+    games = games.sort((gameA, gameB) => {
       let a = gameA.hoursOnRecord || 0;
       let b = gameB.hoursOnRecord || 0;
       return -(a - b);
     });
 
     // 用便于浏览的形式输出
-    let result = [];
-    for (let game of data.first(15).values()) {
-      result.push(`[${game.name}](${game.storeLink}) (${game.hoursOnRecord.toFixed(1)} 小时)`);
+    let gamesList = [];
+    for (let game of games.first(15).values()) {
+      let recordText = game.hoursOnRecord ? ` (${game.hoursOnRecord.toFixed(1)} 小时)` : '';
+      gamesList.push(`[${game.name}](${game.storeLink})${recordText}`);
     }
     let embed = commonEmbed()
       .setTitle('共同游玩的Steam游戏')
-      .setDescription(`将游玩时间相加后进行排序的前15个游戏。\n\n${result.join('\n')}`);
+      .setDescription('将游玩时间相加后，排名前15的游戏。')
+      .addFields(
+        { name: '玩家', value: playerList.join('\n') },
+        { name: '共同游戏', value: gamesList.length !== 0 ? gamesList.join('\n') : '没有共同游戏' }
+      );
     await interaction.editReply(embed);
   }
 }
@@ -87,7 +99,7 @@ module.exports = {
 /**
  * 获取游戏数据
  * @param {string} query SteamID64 或 完整URL 或 自定义URL
- * @returns {Promise<Discord.Collection<string, any>>}
+ * @returns {Promise<any>} 游戏数据
  */
 async function getGamesData(query) {
   // 分析并生成URL
@@ -108,14 +120,19 @@ async function getGamesData(query) {
     error.code = 'ERR_GAME_INFO';
     throw error;
   }
-  // 提取游戏数据
-  let coll = new Discord.Collection();
+  // 生成游戏数据
+  let result = {
+    steamID64: data.gamesList.steamID64,
+    steamID: data.gamesList.steamID,
+    profile: profile,
+    games: new Discord.Collection()
+  };
   for (let game of data.gamesList.games.game) {
     // 格式化游玩时间
     if (game.hoursOnRecord) {
       game.hoursOnRecord = Number(game.hoursOnRecord.replace(/,/g, ''));
     };
-    coll.set(game.appID, game);
+    result.games.set(game.appID, game);
   }
-  return coll;
+  return result;
 }
