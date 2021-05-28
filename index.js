@@ -120,9 +120,13 @@ if (proxy.enable) {
 
 client.login(token); // 登陆客户端
 
-// 程序中止时
-process.on('SIGINT', async () => {
+// 退出程序
+function exit() {
   client.destroy(); // 销毁客户端
   logger.info('拜拜!'); // 输出退出信息
   process.exit(); // 程序退出
-});
+}
+
+// 程序中止时
+process.on('SIGINT', exit);
+process.on('SIGTERM', exit);
