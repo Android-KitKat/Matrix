@@ -108,7 +108,7 @@ client.on('interaction', async interaction => {
   } catch (error) {
     logger.error(error);
     if (interaction.deferred) {
-      interaction.followUp({ embeds: [errorEmbed('在尝试执行命令时出错!')], ephemeral: true });
+      interaction.editReply({ embeds: [errorEmbed('在尝试执行命令时出错!')], ephemeral: true });
     } else {
       interaction.reply({ embeds: [errorEmbed('在尝试执行命令时出错!')], ephemeral: true });
     }

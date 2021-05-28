@@ -67,7 +67,7 @@ module.exports = {
       }
     } catch (error) {
       if (error.code !== 'ERR_GAME_INFO' && error.name !== 'TypeError') throw error;
-      return interaction.followUp({ embeds:[errorEmbed(error)], ephemeral: true });
+      return interaction.editReply({ embeds:[errorEmbed(error)], ephemeral: true });
     }
 
     // 按游玩时间排序
@@ -85,7 +85,7 @@ module.exports = {
     let embed = commonEmbed()
       .setTitle('共同游玩的Steam游戏')
       .setDescription(`将游玩时间相加后进行排序的前15个游戏。\n\n${result.join('\n')}`);
-    await interaction.followUp(embed);
+    await interaction.editReply(embed);
   }
 }
 
