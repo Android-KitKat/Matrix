@@ -9,54 +9,49 @@ module.exports = {
   options: [{
     name: 'player1',
     type: 'STRING',
-    description: 'Steam个人资料地址',
+    description: 'SteamID64 或 完整URL 或 自定义URL',
     required: true
   },{
     name: 'player2',
     type: 'STRING',
-    description: 'Steam个人资料地址',
+    description: 'SteamID64 或 完整URL 或 自定义URL',
     required: true
   },{
     name: 'player3',
     type: 'STRING',
-    description: 'Steam个人资料地址',
+    description: 'SteamID64 或 完整URL 或 自定义URL',
     required: false
   },{
     name: 'player4',
     type: 'STRING',
-    description: 'Steam个人资料地址',
+    description: 'SteamID64 或 完整URL 或 自定义URL',
     required: false
   },{
     name: 'player5',
     type: 'STRING',
-    description: 'Steam个人资料地址',
+    description: 'SteamID64 或 完整URL 或 自定义URL',
     required: false
   },{
     name: 'player6',
     type: 'STRING',
-    description: 'Steam个人资料地址',
+    description: 'SteamID64 或 完整URL 或 自定义URL',
     required: false
   }],
 
   async execute(interaction) {
-    // 解析参数
-    let profiles = [];
-    for (let option of interaction.options) {
-      profiles.push(option.value.trim());
-    }
-
     // 推迟回复
     await interaction.defer();
 
-    // 引入嵌入消息工具类
+    // 引入相关对象
+    const { options } = interaction;
     const { commonEmbed, errorEmbed } = interaction.client.embeds;
 
     // 计算游戏的交集
     let data;
     try {
-      data = await getGamesData(profiles[0]);
-      for (let i = 1; i < profiles.length; i++) {
-        let intersect = data.intersect(await getGamesData(profiles[i]));
+      data = await getGamesData(options[0].value.trim());
+      for (let i = 1; i < options.length; i++) {
+        let intersect = data.intersect(await getGamesData(options[i].value.trim()));
         intersect.each(game => {
           let oldGame = data.get(game.appID);
           if (game.hoursOnRecord || oldGame.hoursOnRecord) {
@@ -66,7 +61,7 @@ module.exports = {
         data = intersect;
       }
     } catch (error) {
-      if (error.code !== 'ERR_GAME_INFO' && error.name !== 'TypeError') throw error;
+      if (error.code !== 'ERR_GAME_INFO') throw error;
       return interaction.editReply({ embeds:[errorEmbed(error)], ephemeral: true });
     }
 
@@ -91,17 +86,25 @@ module.exports = {
 
 /**
  * 获取游戏数据
- * @param {string} profile Steam个人资料地址
+ * @param {string} query SteamID64 或 完整URL 或 自定义URL
  * @returns {Promise<Discord.Collection<string, any>>}
  */
-async function getGamesData(profile) {
-  let url = new URL('games/?xml=1&l=schinese', `${profile}${profile.endsWith('/') ? '' : '/'}`); // 生成URL
-  if (url.host !== 'steamcommunity.com') throw new TypeError(`非Steam社区地址: ${profile}`); // 检查URL
+async function getGamesData(query) {
+  // 分析并生成URL
+  let profile;
+  if (query.length === 17 && query.startsWith('7656119')) {
+    profile = `https://steamcommunity.com/profiles/${query}/`;
+  } else if (/https?:\/\/steamcommunity.com\/(profiles|id)\/.+/.test(query)) {
+    profile = `${query}${query.endsWith('/') ? '' : '/'}`;
+  } else {
+    profile = `https://steamcommunity.com/id/${query}/`;
+  }
+  let url = new URL('games/?xml=1&l=schinese', profile);
   let res = await fetch(url.href); // 发送请求
   let data = await xml2js.parseStringPromise(await res.text(), { explicitArray: false }); // 解析XML
   // 无法获取游戏数据时报错
-  if (!data.gamesList.games || !data.gamesList.games.game) {
-    let error = new Error(`无法获取 [${data.gamesList.steamID}](${profile}) 的游戏信息。`);
+  if (!data.gamesList || !data.gamesList.games || !data.gamesList.games.game) {
+    let error = new Error(`无法从 ${profile} 获取游戏信息。`);
     error.code = 'ERR_GAME_INFO';
     throw error;
   }
