@@ -61,10 +61,6 @@ for (const file of commandFiles) {
 client.once('ready', () => {
   logger.info(`登陆到 ${client.user.tag}`); // 输出登陆信息
   client.user.setPresence(activity ? { activities: [{ name: activity }] } : {}); // 设置活动状态
-  // 注册斜杠命令
-  commands.each(command => {
-    client.application.commands.create(command);
-  });
 });
 
 // 收到交互时
