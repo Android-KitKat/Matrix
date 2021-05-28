@@ -94,7 +94,7 @@ async function getGamesData(query) {
   let profile;
   if (query.length === 17 && query.startsWith('7656119')) {
     profile = `https://steamcommunity.com/profiles/${query}/`;
-  } else if (/https?:\/\/steamcommunity.com\/(profiles|id)\/.+/.test(query)) {
+  } else if (/^https?:\/\/steamcommunity.com\/(profiles|id)\/.+$/.test(query)) {
     profile = `${query}${query.endsWith('/') ? '' : '/'}`;
   } else {
     profile = `https://steamcommunity.com/id/${query}/`;
