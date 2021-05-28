@@ -16,13 +16,12 @@ class EmbedUtils {
    * @returns {Discord.MessageEmbed} 嵌入消息
    */
   commonEmbed = () => {
-    const { user, users } = this.client;
-    const developer = users.cache.get('332127896426512387');
+    const { user } = this.client;
     
     let embed = new Discord.MessageEmbed()
       .setColor('#0099ff')
       .setAuthor(user.username, user.displayAvatarURL())
-      .setFooter(`由 ${developer.username} 制作`, developer.displayAvatarURL())
+      .setFooter(`由 Android 制作`)
       .setTimestamp();
     
     return embed;
