@@ -68,7 +68,7 @@ module.exports = {
         games = intersect;
       }
     } catch (error) {
-      if (error.code !== 'ERR_GAME_INFO') throw error;
+      if (!error instanceof GamesDataError) throw error;
       return interaction.editReply({ embeds:[errorEmbed(error)], ephemeral: true });
     }
 
@@ -112,13 +112,18 @@ async function getGamesData(query) {
     profile = `https://steamcommunity.com/id/${query}/`;
   }
   let url = new URL('games/?xml=1&l=schinese', profile);
-  let res = await fetch(url.href); // 发送请求
-  let data = await xml2js.parseStringPromise(await res.text(), { explicitArray: false }); // 解析XML
+  let res;
+  try {
+    res = await fetch(url.href, { timeout: 15e3 }); // 发送请求
+  } catch(error) {
+    // 请求超时时报错
+    if (error.type !== 'request-timeout') throw error;
+    throw new GamesDataError(profile);
+  }
+  let data = res.ok && await xml2js.parseStringPromise(await res.text(), { explicitArray: false }); // 解析XML
   // 无法获取游戏数据时报错
-  if (!data.gamesList || !data.gamesList.games || !data.gamesList.games.game) {
-    let error = new Error(`无法从 ${profile} 获取游戏信息。`);
-    error.code = 'ERR_GAME_INFO';
-    throw error;
+  if (!data || !data.gamesList || !data.gamesList.games || !data.gamesList.games.game) {
+    throw new GamesDataError(profile);
   }
   // 生成游戏数据
   let result = {
@@ -135,4 +140,15 @@ async function getGamesData(query) {
     result.games.set(game.appID, game);
   }
   return result;
+}
+
+// 游戏数据错误类
+class GamesDataError extends Error {
+  constructor(profile) {
+    super(`无法从 ${profile} 获取游戏信息。`);
+  }
+
+  get name() {
+    return this.constructor.name;
+  }
 }
