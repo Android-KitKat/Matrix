@@ -1,5 +1,6 @@
 {
   "token": "Bot token",
+  "steamapi": "Steam Web API Key",
   "proxy": {
     "enable": false,
     "http": "http://127.0.0.1:8080",

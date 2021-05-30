@@ -29,14 +29,15 @@ class EmbedUtils {
   
   /**
    * 错误消息模板
-   * @param {Error | string} error 错误信息
+   * @param {Error | string} error 错误对象
+   * @param {string} message 文字信息
    * @returns {Discord.MessageEmbed} 嵌入消息
    */
-  errorEmbed = (error) => {
+  errorEmbed = (error, message) => {
     let embed = this.commonEmbed()
       .setColor('#E74C3C')
       .setTitle('错误')
-      .setDescription(error.message || error);
+      .setDescription(`${message ? `${message}\n\n` : ''}${error.message || error}`);
   
     return embed;
   }

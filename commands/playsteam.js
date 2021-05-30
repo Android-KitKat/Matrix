@@ -1,6 +1,8 @@
 const Discord = require('discord.js');
-const fetch = require('node-fetch');
-const xml2js = require('xml2js');
+const SteamAPI = require('steamapi');
+const { steamapi } = require('../config.json');
+
+const steam = new SteamAPI(steamapi);
 
 module.exports = {
   name: 'playsteam',
@@ -9,32 +11,32 @@ module.exports = {
   options: [{
     name: 'player1',
     type: 'STRING',
-    description: 'SteamID64 或 完整URL 或 自定义URL',
+    description: 'SteamID64 或 自定义URL 或 完整URL',
     required: true
   },{
     name: 'player2',
     type: 'STRING',
-    description: 'SteamID64 或 完整URL 或 自定义URL',
+    description: 'SteamID64 或 自定义URL 或 完整URL',
     required: true
   },{
     name: 'player3',
     type: 'STRING',
-    description: 'SteamID64 或 完整URL 或 自定义URL',
+    description: 'SteamID64 或 自定义URL 或 完整URL',
     required: false
   },{
     name: 'player4',
     type: 'STRING',
-    description: 'SteamID64 或 完整URL 或 自定义URL',
+    description: 'SteamID64 或 自定义URL 或 完整URL',
     required: false
   },{
     name: 'player5',
     type: 'STRING',
-    description: 'SteamID64 或 完整URL 或 自定义URL',
+    description: 'SteamID64 或 自定义URL 或 完整URL',
     required: false
   },{
     name: 'player6',
     type: 'STRING',
-    description: 'SteamID64 或 完整URL 或 自定义URL',
+    description: 'SteamID64 或 自定义URL 或 完整URL',
     required: false
   }],
 
@@ -47,43 +49,39 @@ module.exports = {
     const { commonEmbed, errorEmbed } = interaction.client.embeds;
 
     let playerList = []; // 玩家列表
-    let games; // 游戏的交集
-    try {
-      for (let i = 0; i < options.length; i++) {
-        let data = await getGamesData(options[i].value.trim()); // 获取游戏数据
-        playerList.push(`[${data.steamID}](${data.profile})`); // 向玩家列表添加玩家
-        // 如果是初次循环，则不继续计算。
-        if (i === 0) {
-          games = data.games;
-          continue;
-        }
-        let intersect = games.intersect(data.games); // 计算游戏的交集
-        // 将游玩时间相加
-        intersect.each(game => {
-          let oldGame = games.get(game.appID);
-          if (game.hoursOnRecord || oldGame.hoursOnRecord) {
-            game.hoursOnRecord = (game.hoursOnRecord || 0) + (oldGame.hoursOnRecord || 0);
-          }
-        });
-        games = intersect;
+    let games; // 共同游戏
+    for (let i = 0; i < options.length; i++) {
+      let query = options[i].value.trim(); // 获取参数
+      let data;
+      try {
+        data = await getPlayerData(query); // 获取游戏数据
+      } catch (error) {
+        return interaction.editReply({ embeds:[errorEmbed(error, `在获取 ${query} 的数据时发生错误`)], ephemeral: true });
       }
-    } catch (error) {
-      if (!error instanceof GamesDataError) throw error;
-      return interaction.editReply({ embeds:[errorEmbed(error)], ephemeral: true });
+      playerList.push(`[${data.nickname}](${data.url})`); // 向玩家列表添加玩家
+      // 如果是初次循环，则不继续计算。
+      if (i === 0) {
+        games = data.games;
+        continue;
+      }
+      let intersect = games.intersect(data.games); // 计算游戏的交集
+      // 将游玩时间相加
+      intersect.each(game => {
+        game.playTime += games.get(game.appID).playTime;
+      });
+      games = intersect;
     }
 
     // 按游玩时间排序
     games = games.sort((gameA, gameB) => {
-      let a = gameA.hoursOnRecord || 0;
-      let b = gameB.hoursOnRecord || 0;
-      return -(a - b);
+      return -(gameA.playTime - gameB.playTime);
     });
 
     // 用便于浏览的形式输出
     let gamesList = [];
     for (let game of games.first(15).values()) {
-      let recordText = game.hoursOnRecord ? ` (${game.hoursOnRecord.toFixed(1)} 小时)` : '';
-      gamesList.push(`[${game.name}](${game.storeLink})${recordText}`);
+      let recordText = game.playTime > 0 ? ` (${(game.playTime / 60).toFixed(1)} 小时)` : '';
+      gamesList.push(`${game.name}${recordText}`);
     }
     let embed = commonEmbed()
       .setTitle('共同游玩的Steam游戏')
@@ -97,58 +95,26 @@ module.exports = {
 }
 
 /**
- * 获取游戏数据
- * @param {string} query SteamID64 或 完整URL 或 自定义URL
- * @returns {Promise<any>} 游戏数据
+ * 获取玩家数据
+ * @param {string} query SteamID64 或 自定义URL 或 完整URL
+ * @returns {Promise<any>} 玩家数据
  */
-async function getGamesData(query) {
-  // 分析并生成URL
-  let profile;
-  if (query.length === 17 && query.startsWith('7656119')) {
-    profile = `https://steamcommunity.com/profiles/${query}/`;
-  } else if (/^https?:\/\/steamcommunity.com\/(profiles|id)\/.+$/.test(query)) {
-    profile = `${query}${query.endsWith('/') ? '' : '/'}`;
-  } else {
-    profile = `https://steamcommunity.com/id/${query}/`;
-  }
-  let url = new URL('games/?xml=1&l=schinese', profile);
-  let res;
-  try {
-    res = await fetch(url.href, { timeout: 15e3 }); // 发送请求
-  } catch(error) {
-    // 请求超时时报错
-    if (error.type !== 'request-timeout') throw error;
-    throw new GamesDataError(profile);
-  }
-  let data = res.ok && await xml2js.parseStringPromise(await res.text(), { explicitArray: false }); // 解析XML
-  // 无法获取游戏数据时报错
-  if (!data || !data.gamesList || !data.gamesList.games || !data.gamesList.games.game) {
-    throw new GamesDataError(profile);
-  }
-  // 生成游戏数据
-  let result = {
-    steamID64: data.gamesList.steamID64,
-    steamID: data.gamesList.steamID,
-    profile: profile,
+async function getPlayerData(query) {
+  // 获取数据
+  let steamID = await steam.resolve(query);
+  let player = await steam.getUserSummary(steamID);
+  let games = await steam.getUserOwnedGames(steamID);
+
+  // 生成数据
+  let data = {
+    nickname: player.nickname,
+    url: player.url,
     games: new Discord.Collection()
-  };
-  for (let game of data.gamesList.games.game) {
-    // 格式化游玩时间
-    if (game.hoursOnRecord) {
-      game.hoursOnRecord = Number(game.hoursOnRecord.replace(/,/g, ''));
-    };
-    result.games.set(game.appID, game);
-  }
-  return result;
-}
-
-// 游戏数据错误类
-class GamesDataError extends Error {
-  constructor(profile) {
-    super(`无法从 ${profile} 获取游戏信息。`);
   }
 
-  get name() {
-    return this.constructor.name;
+  for (let game of games) {
+    data.games.set(game.appID, game);
   }
+
+  return data;
 }
