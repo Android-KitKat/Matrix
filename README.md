@@ -1,2 +1,2 @@
 # Matrix
-My Discord bot.
+Personal Discord robot.
